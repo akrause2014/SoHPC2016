@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Worker</title>
+
+  <script src="js/jquery-2.1.4.min.js"></script>
+  <!-- Bootstrap 3.3.5 -->
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap-theme.min.css">
+  <style media="screen">
+    body {
+      padding-top: 20px;
+      padding-bottom: 20px;
+    }
+    @media (orientation:landscape) {
+      .landscape-only {
+      }
+      .portrait-only {
+        display: none;
+      }
+    }
+    @media (orientation:portrait) {
+      .landscape-only {
+        display: none;
+      }
+      .portrait-only {
+      }
+    }
+    @media (min-width: 321px) and (orientation:landscape) {
+      .col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12 {
+        float: left;
+      }
+      .col-md-6 {
+        width: 50%;
+      }
+      .col-md-3 {
+        width: 25%;
+      }
+    }
+    #display {
+      padding: 10px;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
+    #jobcanvas {
+    vertical-align: top;
+    display: block;
+    overflow: auto;
+    }
+
+
+  </style>
+  <script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+
+  <script src="js/worker.js"></script>
+  <script src="js/fractal.js"></script>
+  <script type="text/javascript">
+  (function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
+                                   || window[vendors[x]+'CancelRequestAnimationFrame'];
+    }
+
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+              timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+    }());
+
+    var getUrlParameter = function getUrlParameter(sParam) {
+        var sPageURL = decodeURIComponent(window.location.search.substring(1)),
+            sURLVariables = sPageURL.split('&'),
+            sParameterName,
+            i;
+
+        for (i = 0; i < sURLVariables.length; i++) {
+            sParameterName = sURLVariables[i].split('=');
+
+            if (sParameterName[0] === sParam) {
+                return sParameterName[1] === undefined ? true : sParameterName[1];
+            }
+        }
+    };
+
+    var completed_jobs = 0;
+
+    function setStatus(status) {
+      $('#status_pt').text(status);
+      $('#status_lc').text(status);
+    }
+    function updateCompletedJobs() {
+      $('#jobs_completed_pt').text(completed_jobs);
+      $('#jobs_completed_lc').text(completed_jobs);
+    }
+    function computation_complete() {
+      console.log('computation complete');
+      setStatus('Data transfer');
+    }
+    function computation_complete() {
+      console.log('transferred result data');
+      completed_jobs += 1;
+      updateCompletedJobs();
+      setStatus('Complete');
+      $('#controlbutton').show();
+    }
+
+    $(document).ready(function() {
+      var element = document.getElementById("jobcanvas");
+      var csize = Math.max($('#display').width(), $('#display').height());
+      element.width = csize;
+      element.height = csize;
+      ctx = element.getContext("2d");
+      var worker_id = null;
+      var heartbeat_interval = null;
+
+      $('#controlbutton').click(function() {
+        console.log('Start computing');
+        setStatus('Receive job');
+        $(this).hide();
+
+        // var compute_function = point_in_julia_set;
+        // var xstart = 0;
+        // var xstop = 768;
+        // var ystart = 0;
+        // var xmin = -1.0;
+        // var xmax = 1.0;
+        // var ymin = -1.5;
+        // var ymax = 1.5;
+        // var cim = 0.01;
+        // var cre = 0.285;
+        // var grid_size_x = 768;
+        // var grid_size_y = Math.floor(grid_size_x * (ymax - ymin)/(xmax - xmin));
+        // var ystop = grid_size_y;
+        // var max_iter = 5000;
+
+        // fractal.init(compute_function, ctx,
+        //     xstart, xstop, ystart, ystop,
+        //     xmin, xmax, ymin, ymax, cre, cim,
+        //     grid_size_x, grid_size_y, max_iter);
+
+        // compute_pixels(compute_function, ctx,
+        //                xstart, xstop, ystart, ystop,
+        //                xmin, xmax, ymin, ymax, cre, cim,
+        //                grid_size_x, grid_size_y, max_iter)
+        try {
+          if (worker_id == null) {
+            console.log('Registering worker')
+            var worker_name = getUrlParameter('name');
+            $.ajax({url: "/worker",
+                    type: 'POST',
+                    data: JSON.stringify({'name': worker_name})})
+              .done(function(data) {
+                var json = JSON.parse(data);
+                var task = json['task'];
+                worker_id = json['id'];
+                console.log("registered as worker " + worker_id);
+                var task_size = task['task_size'];
+                ctx.clearRect(0, 0, csize, csize);
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                var scale = csize/task_size;
+                console.log('canvas width: ' + csize + ', scale = ' + scale);
+                ctx.save();
+                ctx.scale(scale, scale);
+                setStatus('Compute');
+                compute_task(worker_id, task);
+              })
+              .fail(function(){
+                console.log('registration failed');
+              });
+          }
+          else {
+            console.log('Getting next job for worker ' + worker_id)
+            $.ajax({url: "/worker/" + worker_id,
+                    type: 'POST'})
+              .done(function(data) {
+                console.log("received command");
+                var json = JSON.parse(data);
+                var task = json['task'];
+                var task_size = task['task_size'];
+                ctx.clearRect(0, 0, csize, csize);
+                var scale = csize/task_size;
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(scale, scale);
+                setStatus('Compute');
+                compute_task(worker_id, task);
+              })
+              .fail(function(){
+                console.log('could not get job');
+              });
+          }
+        } catch (err) {
+          console.log('Error: '  + err);
+        }
+      })
+    })
+  </script>
+</head>
+<body role="document">
+
+    <div class="container theme-showcase" role="main">
+
+      <div class="row">
+        <div class="col-md-3">
+          <div class="row portrait-only">
+            <div class="col-xs-6">
+              <div class="panel panel-success">
+                <div class="panel-heading">
+                  <h3 class="panel-title">Status</h3>
+                </div>
+                <div class="panel-body" id="status_pt">
+                  Pause
+                </div>
+              </div>
+            </div>
+            <div class="col-xs-6">
+              <div class="panel panel-warning">
+                <div class="panel-heading">
+                  <h3 class="panel-title">Completed</h3>
+                </div>
+                <div class="panel-body" id="jobs_completed_pt">
+                  0
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row landscape-only">
+            <div class="col-lg-6">
+              <div class="panel panel-success">
+                <div class="panel-heading">
+                  <h3 class="panel-title">Status</h3>
+                </div>
+                <div class="panel-body" id="status_lc">
+                  Pause
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="panel panel-warning">
+                <div class="panel-heading">
+                  <h3 class="panel-title">Completed</h3>
+                </div>
+                <div class="panel-body" id="jobs_completed_lc">
+                  0
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div id="display">
+              <canvas id="jobcanvas" style="border:1px solid #c3c3c3;">
+                Your browser does not support the HTML5 canvas tag.
+              </canvas>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-center">
+            <a  id="controlbutton" class="btn btn-lg btn-primary" href="#" role="button">Start</a>
+          </div>
+
+        </div>
+      </div>
+
+    </div> <!-- /container -->
+
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Master</title>
+  <script src="js/jquery-2.1.4.min.js"></script>
+  <!-- Bootstrap 3.3.5 -->
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap-theme.min.css">
+  <script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+
+  <script type="text/javascript">
+  $(document).ready(function() {
+    $('#reset_button').click(function() {
+      $('#grid_size_x').val(768);
+      $('#xmin').val(-2.0);
+      $('#xmax').val(1.0);
+      $('#ymin').val(-1.5);
+      $('#ymax').val(1.5);
+      $('#cim').val(0.01);
+      $('#cre').val(0.285);
+      $('#max_iter').val(5000);
+      $('#task_size').val(96);
+    });
+    $('#start_button').click(function() {
+      var job_description = {}
+      job_description['grid_size_x'] = $('#grid_size_x').val();
+      job_description['xmin'] = $('#xmin').val();
+      job_description['xmax'] = $('#xmax').val();
+      job_description['ymin'] = $('#ymin').val();
+      job_description['ymax'] = $('#ymax').val();
+      job_description['cim'] = $('#cim').val();
+      job_description['cre'] = $('#cre').val();
+      job_description['max_iter'] = $('#max_iter').val();
+      job_description['task_size'] = $('#task_size').val();
+      job_description['compute_function'] = $('#compute_function').val();
+      try {
+      var job_json = JSON.stringify(job_description);
+      console.log('Submitting job: ' + job_json);
+      $.ajax({url: "/master",
+              type: 'POST',
+              data: job_json})
+        .done(function(data) {
+          console.log( "submitted job" );
+          window.location.href='master_view.html';
+        });
+      } catch(err)
+      {
+        console.log(err);
+      }
+    });
+  });
+  </script>
+</head>
+<body role="document">
+  <div class="container">
+  <h1>Job Master</h2>
+    <form>
+      <table>
+        <tr><td>grid_size_x</td><td><input id="grid_size_x" value="768" type="number"></input></td></tr>
+        <tr><td>xmin</td><td><input id="xmin" value="-2.0" type="number" step="any"></input></td></tr>
+        <tr><td>xmax</td><td><input id="xmax" value="1.0" type="number" step="any"></input></td></tr>
+        <tr><td>ymin</td><td><input id="ymin" value="-1.5" type="number" step="any"></input></td></tr>
+        <tr><td>ymax</td><td><input id="ymax" value="1.5" type="number" step="any"></input></td></tr>
+        <tr><td>cim</td><td><input id="cim" value="0.01" type="number" step="any"></input></td></tr>
+        <tr><td>cre</td><td><input id="cre" value="0.285" type="number" step="any"></input></td></tr>
+        <tr><td>max_iter</td><td><input id="max_iter" value="5000" type="number"></input></td></tr>
+        <tr><td>task_size</td><td><input id="task_size" value="96" type="number"></input></td></tr>
+        <tr>
+          <td>compute_function</td>
+          <td>
+            <select id="compute_function">
+              <option value="julia">Julia Set</option>
+              <option value="mandelbrot">Mandelbrot Set</option>
+            </select>
+          </td>
+        </tr>
+      </table>
+      <p></p>
+      <a id="start_button" class="btn btn-lg btn-default" href="master_view.html" role="button">Submit</a>
+      <a id="reset_button" class="btn btn-lg btn-default" href="" role="button">Default</a>
+    </form>
+    <p></p>
+  </div>
+</body>
+</html>

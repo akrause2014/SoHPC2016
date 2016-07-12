@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Master</title>
+  <script src="js/jquery-2.1.4.min.js"></script>
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap-theme.min.css">
+  <style media="screen">
+  .blue {
+    /*color: #003366;*/
+    color: rgba(0, 0, 102, 1.0)
+  }
+  .blue_fade1 {
+    /*color: #003366;*/
+    color: rgba(0, 0, 102, 0.7)
+  }
+  .blue_fade2 {
+    /*color: #003366;*/
+    color: rgba(0, 0, 102, 0.4)
+  }
+  .blue_fade3 {
+    /*color: #003366;*/
+    color: rgba(0, 0, 102, 0.1)
+  }
+  .green {
+    color: green;
+  }
+  .red {
+    color: red;
+  }
+  .red_background {
+    background: red;
+  }
+  .yellow {
+    color: yellow;
+  }
+  </style>
+  <script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+  <script src="js/worker.js"></script>
+  <script type="text/javascript">
+
+  var worker_display_position = {};
+  var available_pos = [11,10,9,8,7,6,5,4,3,2,1,0];
+
+  function make_row(cols) {
+    row = "<div class=\"row\" style=\"padding:50px;\">" + cols + "</div>";
+    return row;
+  }
+
+  function new_worker(position, name, num_tasks, cls) {
+    if (num_tasks === undefined) num_tasks = 0;
+    var worker = "<div class=\"col-md-4\" id=\"worker_" + position + "\">" +
+      "<center>" +
+        "<div class=\"row\"><span id=\"worker_" + position + "_tasks\" style=\"font-size:large;\" class=\"badge\">" + num_tasks + "</span></div>" +
+        "<div class=\"row\">" +
+          "<span style=\"font-size:6em; padding-top:10px;\" class=\"glyphicon glyphicon-phone " + cls + "\" aria-hidden=\"true\"></span>" +
+        "</div>" +
+        "<div><span id=\"worker_" + position + "_name\" style=\"font-size:large;\">" + name + "</span></div>" +
+      "</center>" +
+    "</div>";
+    return worker;
+  }
+
+  function display_worker(pos, info, cls) {
+    var h = "";
+    if (pos % 3 == 0) h += "<div class=\"row\" style=\"padding:50px;\">";
+    h += new_worker(pos, info['name'], info['num_tasks'], cls);
+    if (pos % 3 == 2) h += "</div>";
+    return h;
+  }
+
+  function get_worker_status(info) {
+    var w_cls = 'blue';
+    if (info['alive'] < 30) w_cls = 'blue';
+    else if (info['alive'] < 60) w_cls = 'blue_fade1';
+    else if (info['alive'] < 90) w_cls = 'blue_fade2';
+    else if (info['alive'] < 120) w_cls = 'blue_fade3';
+    else return null;
+    return w_cls;
+  }
+
+  function update_workers() {
+    console.log('updating workers')
+    $.ajax({url: "/master/workers", type: 'GET'})
+      .done(function(data) {
+        var json = JSON.parse(data);
+        var innerhtml = "";
+        var current_pos = 0;
+        for (var i = 0; i < json.length; i ++) {
+          var w_info = json[i];
+          var w_cls = get_worker_status(w_info);
+          if (w_cls != null) {
+            innerhtml += display_worker(current_pos, w_info, w_cls);
+            current_pos ++;
+          }
+        }
+        if (current_pos % 3 != 0) innerhtml += "</div>";
+        $('#mobile_cluster').html(innerhtml);
+        $('#mobile_cluster').refresh();
+      })
+      .fail(function(req, status, err) {
+        console.log('Could not get data: ' + err);
+      });
+  }
+
+  $(document).ready(function() {
+    var last_id = null;
+    var resized_canvas = false;
+    var element = document.getElementById("jobcanvas");
+    var ctx = element.getContext("2d");
+    var intv;
+    $.ajax({url: "/master", type: 'GET'})
+      .done(function(data) {
+        var json = JSON.parse(data);
+        document.getElementById('jobcanvas').width = json['grid_size_x'];
+        document.getElementById('jobcanvas').height = json['grid_size_y'];
+      });
+
+    $('#start_button').click(function() {
+      console.log('Starting...')
+      intv = setInterval(function() {
+        var url = "/master/results/";
+        if (last_id != null) {
+          url += last_id;
+        }
+        update_workers();
+        console.log('Getting data from ' + url);
+        $.ajax({url: url, type: 'GET'})
+          .done(function(data) {
+            var json = JSON.parse(data);
+            if (json['images'].length > 0) {
+              last_id = json['last_id'];
+            }
+            console.log(json);
+            for (var i=0; i<json['images'].length; i++) {
+              worker_task = json['images'][i];
+              var task = worker_task['task'];
+              if (!resized_canvas) {
+                document.getElementById('jobcanvas').width = task['grid_size_x'];
+                document.getElementById('jobcanvas').height = task['grid_size_y'];
+                resized_canvas = true;
+              }
+              var xstart = task['xstart'];
+              var xstop = task['xstop'];
+              var ystart = task['ystart'];
+              var ystop = task['ystop'];
+              var xsize = xstop-xstart
+              var ysize = ystop-ystart
+
+              for (var x=0; x<xsize; x++) {
+                for (var y=0; y<ysize; y++) {
+                  var rgb = gray_to_rgb(worker_task['image'][x][y], 255);
+                  // console.log(rgb);
+                  ctx.fillStyle = rgbToHex(rgb[R], rgb[G], rgb[B]);
+                  ctx.fillRect(x+xstart, y+ystart, 1, 1);
+                }
+              }
+            }
+          })
+          .fail(function(req, status, err) {
+            console.log('Could not get data: ' + err);
+          });
+      }, 500);
+
+    });
+    $('#stop_button').click(function() {
+      console.log('Stopping...')
+      clearInterval(intv);
+    });
+
+  });
+  </script>
+</head>
+<body role="document">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-2" style="padding:20px 50px;">
+        <div class="btn-group" role="group">
+          <a id="start_button" class="btn btn-lg btn-warning" href="#" role="button">Start</a>
+          <a id="stop_button" class="btn btn-lg btn-warning" href="#" role="button">Stop</a>
+        </div>
+      </div>
+      <div class="col-md-5" style="padding:20px 50px;">
+        <canvas id="jobcanvas" width="768" height="768" style="border:1px solid #c3c3c3;">
+          Your browser does not support the HTML5 canvas tag.
+        </canvas>
+      </div>
+      <div id="mobile_cluster" class="col-md-5" style="padding:50px;">
+        <!-- <div class="row" style="padding:50px;">
+          <div class="col-md-4" id="worker_0">
+            <center>
+              <div class="row-fluid"><span id="worker_0_tasks" style="font-size:large;" class="badge red_background">15</span></div>
+              <div class="row-fluid">
+                <span style="font-size:6em; padding-top:10px;" class="glyphicon glyphicon-phone" aria-hidden="true"></span>
+              </div>
+              <div><span id="worker_0_name" style="font-size:large;">Amy</span></div>
+            </center>
+          </div>
+        </div> -->
+      </div>
+    </div>
+  </div>
+</body>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Worker</title>
+
+  <script src="js/jquery-2.1.4.min.js"></script>
+  <!-- Bootstrap 3.3.5 -->
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap-theme.min.css">
+  <style media="screen">
+    body {
+      padding-top: 70px;
+      padding-bottom: 30px;
+    }
+    .jumbotron {
+        border-bottom: 1px solid #e5e5e5;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+    .jumbotron .btn {
+        padding: 14px 24px;
+        font-size: 21px;
+    }
+
+  </style>
+  <script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+
+  <script src="js/worker.js"></script>
+  <script src="js/fractal.js"></script>
+  <script type="text/javascript">
+  (function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
+                                   || window[vendors[x]+'CancelRequestAnimationFrame'];
+    }
+
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+              timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+    }());
+
+    $(document).ready(function() {
+      // var element = document.getElementById("jobcanvas");
+      // ctx = element.getContext("2d");
+      // var worker_id = null;
+      // var heartbeat_interval = null;
+      //
+      // $('#register_button').click(function() {
+      //   console.log('Registering...')
+      //   $.post("/register", function( data ) {
+      //     try{
+      //     console.log(data);
+      //     var json = $.parseJSON(data);
+      //     worker_id = json.id;
+      //     console.log('Worker id = ' + worker_id);
+      //     heartbeat_interval = setInterval(heart_to_master, 1000, worker_id);
+      //     } catch(err) {
+      //       console.log(err)
+      //     }
+      //   });
+      // });
+      //
+      // $('#deregister_button').click(function() {
+      //   if (heartbeat_interval != null) {
+      //     console.log('clear interval ' + heartbeat_interval);
+      //     clearInterval(heartbeat_interval);
+      //   }
+      // });
+
+      $('#computebutton').on('click', function() {
+        console.log('Registering worker')
+        var worker_name = $('#worker_name').val();
+        $(this).attr('href', "client.html?name=" + worker_name);
+        // $.ajax({url: "/worker",
+        //         type: 'POST',
+        //         data: JSON.stringify({'name': worker_name})})
+        //   .done(function(data) {
+        //     var json = JSON.parse(data);
+        //     var task = json['task'];
+        //     worker_id = json['id'];
+        //     console.log("registered as worker " + worker_id);
+        //     compute_task(worker_id, task);
+        //   })
+        //   .fail(function(){
+        //     console.log('registration failed');
+        //   });
+      })
+    })
+  </script>
+</head>
+<body role="document">
+      <!-- Fixed navbar -->
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Mobile Cluster</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Home</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+
+    <div class="container theme-showcase" role="main">
+
+      <div class="jumbotron">
+        <h1>Worker Device</h1>
+        <p class="lead">Press "Enter" below to be part of the mobile cluster!</p>
+        <p>
+            <label for="worker_name">Your Name (optional):</label>
+            <input type="text" id="worker_name" name="worker_name" value="" class="form-control">
+          </p>
+          <div class="text-center">
+            <a  id="computebutton" class="btn btn-lg btn-success" href="client.html" role="button">Enter</a>
+          </div>
+        </div>
+
+      </div>
+
+    </div> <!-- /container -->
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Registration</title>
+  <script src="js/jquery-2.1.4.min.js"></script>
+  <script src="js/worker.js"></script>
+  <script src="js/fractal.js"></script>
+  <script type="text/javascript">
+  (function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
+                                   || window[vendors[x]+'CancelRequestAnimationFrame'];
+    }
+
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+              timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+    }());
+
+    $(document).ready(function() {
+      var element = document.getElementById("jobcanvas");
+      ctx = element.getContext("2d");
+      var worker_id = null;
+      var heartbeat_interval = null;
+
+      $('#register_button').click(function() {
+        console.log('Registering...')
+        $.post("/register", function( data ) {
+          console.log(data);
+          var json = $.parseJSON(data);
+          worker_id = json.id;
+          console.log('Worker id = ' + worker_id);
+          heartbeat_interval = setInterval(heart_to_master, 1000, worker_id);
+        });
+      });
+
+      $('#deregister_button').click(function() {
+        if (heartbeat_interval != null) {
+          console.log('stop heartbeat ' + heartbeat_interval);
+          clearInterval(heartbeat_interval);
+        }
+      });
+
+      $('#computebutton').click(function() {
+        console.log('Start computing');
+
+        var compute_function = point_in_julia_set;
+        var xstart = 0;
+        var xstop = 768;
+        var ystart = 0;
+        var ystop = 768;
+        var xmin = -2.0;
+        var xmax = 1.0;
+        var ymin = -1.5;
+        var ymax = 1.5;
+        var cim = 0.01;
+        var cre = 0.285;
+        var grid_size_x = 768;
+        var grid_size_y = Math.floor(grid_size_x * (ymax - ymin)/(xmax - xmin));
+        var max_iter = 5000;
+
+        // compute_pixels(compute_function, ctx,
+        //                xstart, xstop, ystart, ystop,
+        //                xmin, xmax, ymin, ymax, cre, cim,
+        //                grid_size_x, grid_size_y, max_iter)
+        try {
+          fractal.init(compute_function, ctx,
+              xstart, xstop, ystart, ystop,
+              xmin, xmax, ymin, ymax, cre, cim,
+              grid_size_x, grid_size_y, max_iter);
+        } catch (err) {
+          console.log('Error: '  + err);
+        }
+
+      })
+    })
+  </script>
+</head>
+<body>
+  <h1>Registration</h2>
+    <form>
+      <input id="register_button" type="button" value="Register"></input>
+      <input id="deregister_button" type="button" value="Cancel"></input>
+    </form>
+    <p></p>
+    <form>
+      <input id="computebutton" type="button" value="Compute"></input>
+    </form>
+  <canvas id="jobcanvas" width="768" height="768" style="border:1px solid #c3c3c3;">
+Your browser does not support the HTML5 canvas tag.
+</canvas>
+
+</body>
+</html>
